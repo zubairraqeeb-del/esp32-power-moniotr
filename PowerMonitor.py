@@ -33,7 +33,7 @@ st.sidebar.subheader("🔄 Live Refresh")
 auto_refresh = st.sidebar.checkbox("Enable Auto-Refresh", value=True)
 refresh_interval = st.sidebar.slider("Refresh Rate (seconds)", min_value=1, max_value=10, value=3)
 
-# --- Built-in Data Fetchers (No 'requests' library required) ---
+# --- Built-in Data Fetchers ---
 def fetch_live_data():
     try:
         req = urllib.request.Request(LIVE_URL, headers={'User-Agent': 'Mozilla/5.0'})
@@ -52,13 +52,14 @@ def fetch_history_data():
                 data = json.loads(response.read().decode())
                 records = []
                 for idx, (key, val) in enumerate(data.items(), start=1):
-                    hour = idx / 6.0
+                    # 👈 MODIFIED: Extracts timestamp field from Firebase or falls back to key
+                    live_timestamp = val.get("ts") or val.get("time") or val.get("timestamp") or str(key)
                     gross_mw = val.get("gross_mw", 0.0)
-                    records.append({"Hour": round(hour, 2), "Gross MW": gross_mw})
+                    records.append({"Live Time": str(live_timestamp), "Gross MW": gross_mw})
                 return pd.DataFrame(records)
     except Exception:
         pass
-    return pd.DataFrame(columns=["Hour", "Gross MW"])
+    return pd.DataFrame(columns=["Live Time", "Gross MW"])  # 👈 MODIFIED: Updated fallback columns
 
 # --- Dashboard Header ---
 st.title("⚡ Siddhirganj 335MW")
@@ -86,7 +87,7 @@ c4.metric(label="ST Power Factor", value=f"{st_pf:.3f}")
 
 st.markdown("---")
 
-# --- Native Historical Trend Chart (No 'matplotlib' or 'plotly' required) ---
+# --- Native Historical Trend Chart ---
 st.subheader("📈 Historical Trend Analytics")
 
 df_hist = fetch_history_data()
@@ -100,13 +101,11 @@ if not df_hist.empty:
         df_hist = df_hist.tail(72)
     elif time_horizon == "Last 24 Hours":
         df_hist = df_hist.tail(144)
-# 1. Normalize time window so the X-axis starts at 0.0 up to 24.0 hours
-    df_hist["Time (Hours)"] = (df_hist["Hour"] - df_hist["Hour"].min()).round(2)
 
-    # 2. Render chart with explicit X-axis and Y-axis labels
+    # 👈 MODIFIED: Render chart with 'Live Time' on X-axis and 'Gross MW' on Y-axis
     st.line_chart(
         data=df_hist,
-        x="Time (Hours)",
+        x="Live Time",
         y="Gross MW"
     )
 else:
