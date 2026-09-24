@@ -52,15 +52,27 @@ def fetch_history_data():
                 data = json.loads(response.read().decode())
                 records = []
                 for idx, (key, val) in enumerate(data.items(), start=1):
-                    # 👈 MODIFIED: Extracts timestamp field from Firebase or falls back to key
-                    live_timestamp = val.get("ts") or val.get("time") or val.get("timestamp") or str(key)
+                    raw_ts = val.get("ts") or val.get("time") or val.get("timestamp") or key
+                    
+                    # Convert raw Epoch / timestamp to '23sep, 21:00' format
+                    try:
+                        if str(raw_ts).replace('.', '', 1).isdigit():
+                            ts_num = float(raw_ts)
+                            # Convert milliseconds (>1e11) or seconds to datetime
+                            dt = pd.to_datetime(ts_num, unit='ms' if ts_num > 1e11 else 's')
+                        else:
+                            dt = pd.to_datetime(raw_ts)
+                        
+                        live_timestamp = dt.strftime('%d%b, %H:%M').lower()
+                    except Exception:
+                        live_timestamp = str(raw_ts)
+
                     gross_mw = val.get("gross_mw", 0.0)
-                    records.append({"Live Time": str(live_timestamp), "Gross MW": gross_mw})
+                    records.append({"Live Time": live_timestamp, "Gross MW": gross_mw})
                 return pd.DataFrame(records)
     except Exception:
         pass
-    return pd.DataFrame(columns=["Live Time", "Gross MW"])  # 👈 MODIFIED: Updated fallback columns
-
+    return pd.DataFrame(columns=["Live Time", "Gross MW"])
 # --- Dashboard Header ---
 st.title("⚡ Siddhirganj 335MW")
 
