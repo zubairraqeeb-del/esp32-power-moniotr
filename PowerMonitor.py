@@ -6,7 +6,7 @@ import time
 
 # --- Page Setup ---
 st.set_page_config(
-    page_title="Power Plant Remote Monitor",
+    page_title="EGB PLC Power Plants",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -61,7 +61,7 @@ def fetch_history_data():
     return pd.DataFrame(columns=["Hour", "Gross MW"])
 
 # --- Dashboard Header ---
-st.title("⚡ Power Generation Remote Dashboard")
+st.title("⚡ Siddhirganj 335MW")
 
 live_data = fetch_live_data()
 gross_mw = live_data.get("gross_mw", 0.0)
@@ -100,10 +100,15 @@ if not df_hist.empty:
         df_hist = df_hist.tail(72)
     elif time_horizon == "Last 24 Hours":
         df_hist = df_hist.tail(144)
+# 1. Normalize time window so the X-axis starts at 0.0 up to 24.0 hours
+    df_hist["Time (Hours)"] = (df_hist["Hour"] - df_hist["Hour"].min()).round(2)
 
-    # Built-in Streamlit Line Chart
-    chart_data = df_hist.set_index("Hour")[["Gross MW"]]
-    st.line_chart(chart_data)
+    # 2. Render chart with explicit X-axis and Y-axis labels
+    st.line_chart(
+        data=df_hist,
+        x="Time (Hours)",
+        y="Gross MW"
+    )
 else:
     st.info("No historical data available in Firebase yet.")
 
