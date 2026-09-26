@@ -41,6 +41,7 @@ def fetch_url_json(url, timeout=3):
     return {}
 
 def fetch_history_data():
+    """Fetches historical data containing gross_mw, gross_mw_412, and gross_mw_120."""
     try:
         req = urllib.request.Request(HIST_URL, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req, timeout=5) as response:
@@ -59,12 +60,35 @@ def fetch_history_data():
                     except Exception:
                         live_timestamp = str(raw_ts)
 
-                    gross_mw = val.get("gross_mw", 0.0)
-                    records.append({"Live Time": live_timestamp, "Gross MW": gross_mw})
+                    # Extract all 3 historical MW variables
+                    mw_335 = float(val.get("gross_mw", 0.0) or 0.0)
+                    mw_412 = float(val.get("gross_mw_412", 0.0) or 0.0)
+                    mw_120 = float(val.get("gross_mw_120", 0.0) or 0.0)
+
+                    records.append({
+                        "Live Time": live_timestamp,
+                        "Siddhirganj 335MW": mw_335,
+                        "H412 Plant": mw_412,
+                        "S120 Plant": mw_120
+                    })
                 return pd.DataFrame(records)
     except Exception:
         pass
-    return pd.DataFrame(columns=["Live Time", "Gross MW"])
+    return pd.DataFrame(columns=["Live Time", "Siddhirganj 335MW", "H412 Plant", "S120 Plant"])
+
+def apply_time_filter(df, horizon_setting):
+    """Filters history based on user selection in sidebar."""
+    if df.empty:
+        return df
+    if horizon_setting == "Last 1 Hour":
+        return df.tail(12)
+    elif horizon_setting == "Last 6 Hours":
+        return df.tail(72)
+    elif horizon_setting == "Last 12 Hours":
+        return df.tail(144)
+    elif horizon_setting == "Last 24 Hours":
+        return df.tail(288)
+    return df
 
 # --- Sidebar Controls ---
 st.sidebar.title("⚙️ Dashboard Controls")
@@ -84,8 +108,17 @@ live_data_335 = fetch_url_json(LIVE_URL)
 live_data_412 = fetch_url_json(H412_LIVE_URL)
 live_data_120 = fetch_url_json(S120_LIVE_URL)
 
+# Fetch History dataset once
+df_hist_all = fetch_history_data()
+df_hist_filtered = apply_time_filter(df_hist_all, time_horizon)
+
 # Tabbed Layout
-tab1, tab2, tab3 = st.tabs(["🏭 Siddhirganj 335MW", "🏭 H412 Plant", "🏭 S120 Plant"])
+tab1, tab2, tab3, tab4 = st.tabs([
+    "🏭 Siddhirganj 335MW", 
+    "🏭 H412 Plant", 
+    "🏭 S120 Plant", 
+    "📊 Comparative Analytics"
+])
 
 # ------------------ TAB 1: Siddhirganj 335MW ------------------
 with tab1:
@@ -96,20 +129,17 @@ with tab1:
     gt_mvar_335 = float(live_data_335.get("gt_mvar", 0.0))
     st_mvar_335 = float(live_data_335.get("st_mvar", 0.0))
 
-    # Fallback to direct gross values if component values aren't individual in payload
     gross_mw_335 = (gt_mw_335 + st_mw_335) if (gt_mw_335 or st_mw_335) else float(live_data_335.get("gross_mw", 0.0))
     gross_mvar_335 = (gt_mvar_335 + st_mvar_335) if (gt_mvar_335 or st_mvar_335) else float(live_data_335.get("gross_mvar", 0.0))
     gt_pf_335 = calc_pf(gt_mw_335, gt_mvar_335) if (gt_mw_335 or gt_mvar_335) else float(live_data_335.get("gt_pf", 0.0))
     st_pf_335 = calc_pf(st_mw_335, st_mvar_335) if (st_mw_335 or st_mvar_335) else float(live_data_335.get("st_pf", 0.0))
 
-    # Individual Component Breakdown
     m1, m2, m3, m4 = st.columns(4)
     m1.metric(label="GT MW", value=f"{gt_mw_335:.2f} MW")
     m2.metric(label="GT MVAR", value=f"{gt_mvar_335:.2f} MVAR")
     m3.metric(label="ST MW", value=f"{st_mw_335:.2f} MW")
     m4.metric(label="ST MVAR", value=f"{st_mvar_335:.2f} MVAR")
 
-    # Summary Row
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(label="Gross MW", value=f"{gross_mw_335:.2f} MW")
     c2.metric(label="Gross MVAR", value=f"{gross_mvar_335:.2f} MVAR")
@@ -118,38 +148,20 @@ with tab1:
 
     st.markdown("---")
 
-    # --- Historical Trend Chart (Only inside 335MW Tab) ---
-    st.subheader("📈 Historical Trend Analytics (Siddhirganj)")
-
-    df_hist = fetch_history_data()
-
-    if not df_hist.empty:
-        if time_horizon == "Last 1 Hour":
-            df_hist = df_hist.tail(6)
-        elif time_horizon == "Last 6 Hours":
-            df_hist = df_hist.tail(36)
-        elif time_horizon == "Last 12 Hours":
-            df_hist = df_hist.tail(72)
-        elif time_horizon == "Last 24 Hours":
-            df_hist = df_hist.tail(144)
-
-        st.line_chart(
-            data=df_hist,
-            x="Live Time",
-            y="Gross MW"
-        )
+    st.subheader("📈 Historical Trend Analytics (Siddhirganj 335MW)")
+    if not df_hist_filtered.empty:
+        st.line_chart(data=df_hist_filtered, x="Live Time", y="Siddhirganj 335MW")
     else:
         st.info("No historical data available in Firebase yet.")
 
-    # --- Data Table & CSV Download ---
-    with st.expander("📥 View & Export Historical CSV Data"):
-        st.dataframe(df_hist, use_container_width=True)
-        if not df_hist.empty:
-            csv_data = df_hist.to_csv(index=False).encode('utf-8')
+    with st.expander("📥 View & Export 335MW Historical CSV Data"):
+        if not df_hist_filtered.empty:
+            df_335_csv = df_hist_filtered[["Live Time", "Siddhirganj 335MW"]]
+            st.dataframe(df_335_csv, use_container_width=True)
             st.download_button(
-                label="Download Log History as CSV",
-                data=csv_data,
-                file_name="power_generation_history.csv",
+                label="Download 335MW History as CSV",
+                data=df_335_csv.to_csv(index=False).encode('utf-8'),
+                file_name="335mw_generation_history.csv",
                 mime="text/csv"
             )
 
@@ -163,25 +175,41 @@ with tab2:
     gt_mvar_412 = float(live_data_412.get("gt_mvar", 0.0))
     st_mvar_412 = float(live_data_412.get("st_mvar", 0.0))
 
-    # Calculations
     gross_mw_412 = gt_mw_412 + st_mw_412
     gross_mvar_412 = gt_mvar_412 + st_mvar_412
     gt_pf_412 = calc_pf(gt_mw_412, gt_mvar_412)
     st_pf_412 = calc_pf(st_mw_412, st_mvar_412)
 
-    # Individual Component Breakdown
     m1, m2, m3, m4 = st.columns(4)
     m1.metric(label="GT MW", value=f"{gt_mw_412:.2f} MW")
     m2.metric(label="GT MVAR", value=f"{gt_mvar_412:.2f} MVAR")
     m3.metric(label="ST MW", value=f"{st_mw_412:.2f} MW")
     m4.metric(label="ST MVAR", value=f"{st_mvar_412:.2f} MVAR")
 
-    # Summary Row
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(label="Gross MW", value=f"{gross_mw_412:.2f} MW")
     c2.metric(label="Gross MVAR", value=f"{gross_mvar_412:.2f} MVAR")
     c3.metric(label="GT Power Factor", value=f"{gt_pf_412:.3f}")
     c4.metric(label="ST Power Factor", value=f"{st_pf_412:.3f}")
+
+    st.markdown("---")
+
+    st.subheader("📈 Historical Trend Analytics (H412)")
+    if not df_hist_filtered.empty:
+        st.line_chart(data=df_hist_filtered, x="Live Time", y="H412 Plant")
+    else:
+        st.info("No historical data available in Firebase yet.")
+
+    with st.expander("📥 View & Export H412 Historical CSV Data"):
+        if not df_hist_filtered.empty:
+            df_412_csv = df_hist_filtered[["Live Time", "H412 Plant"]]
+            st.dataframe(df_412_csv, use_container_width=True)
+            st.download_button(
+                label="Download H412 History as CSV",
+                data=df_412_csv.to_csv(index=False).encode('utf-8'),
+                file_name="h412_generation_history.csv",
+                mime="text/csv"
+            )
 
 
 # ------------------ TAB 3: S120 Plant ------------------
@@ -193,25 +221,85 @@ with tab3:
     gt1_mvar_120 = float(live_data_120.get("gt1_mvar", 0.0))
     gt2_mvar_120 = float(live_data_120.get("gt2_mvar", 0.0))
 
-    # Calculations
     gross_mw_120 = gt1_mw_120 + gt2_mw_120
     gross_mvar_120 = gt1_mvar_120 + gt2_mvar_120
     gt1_pf_120 = calc_pf(gt1_mw_120, gt1_mvar_120)
     gt2_pf_120 = calc_pf(gt2_mw_120, gt2_mvar_120)
 
-    # Individual Component Breakdown
     m1, m2, m3, m4 = st.columns(4)
     m1.metric(label="GT1 MW", value=f"{gt1_mw_120:.2f} MW")
     m2.metric(label="GT1 MVAR", value=f"{gt1_mvar_120:.2f} MVAR")
     m3.metric(label="GT2 MW", value=f"{gt2_mw_120:.2f} MW")
     m4.metric(label="GT2 MVAR", value=f"{gt2_mvar_120:.2f} MVAR")
 
-    # Summary Row
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(label="Gross MW", value=f"{gross_mw_120:.2f} MW")
     c2.metric(label="Gross MVAR", value=f"{gross_mvar_120:.2f} MVAR")
     c3.metric(label="GT1 Power Factor", value=f"{gt1_pf_120:.3f}")
     c4.metric(label="GT2 Power Factor", value=f"{gt2_pf_120:.3f}")
+
+    st.markdown("---")
+
+    st.subheader("📈 Historical Trend Analytics (S120)")
+    if not df_hist_filtered.empty:
+        st.line_chart(data=df_hist_filtered, x="Live Time", y="S120 Plant")
+    else:
+        st.info("No historical data available in Firebase yet.")
+
+    with st.expander("📥 View & Export S120 Historical CSV Data"):
+        if not df_hist_filtered.empty:
+            df_120_csv = df_hist_filtered[["Live Time", "S120 Plant"]]
+            st.dataframe(df_120_csv, use_container_width=True)
+            st.download_button(
+                label="Download S120 History as CSV",
+                data=df_120_csv.to_csv(index=False).encode('utf-8'),
+                file_name="s120_generation_history.csv",
+                mime="text/csv"
+            )
+
+
+# ------------------ TAB 4: Comparative Analytics ------------------
+with tab4:
+    st.subheader("📊 Cross-Plant Comparative Trend Analysis")
+
+    # Fleet-wide Summary Metrics
+    total_live_mw = gross_mw_335 + gross_mw_412 + gross_mw_120
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric(label="Total Fleet Live Generation", value=f"{total_live_mw:.2f} MW")
+    k2.metric(label="335MW Share", value=f"{gross_mw_335:.1f} MW")
+    k3.metric(label="H412 Share", value=f"{gross_mw_412:.1f} MW")
+    k4.metric(label="S120 Share", value=f"{gross_mw_120:.1f} MW")
+
+    st.markdown("---")
+
+    # Plant Selection for Comparison
+    selected_plants = st.multiselect(
+        "Select Plants to Include in Trend Comparison:",
+        options=["Siddhirganj 335MW", "H412 Plant", "S120 Plant"],
+        default=["Siddhirganj 335MW", "H412 Plant", "S120 Plant"]
+    )
+
+    if not df_hist_filtered.empty:
+        if selected_plants:
+            st.line_chart(
+                data=df_hist_filtered,
+                x="Live Time",
+                y=selected_plants
+            )
+        else:
+            st.warning("Please select at least one plant above to render the chart.")
+    else:
+        st.info("No historical data available in Firebase yet.")
+
+    with st.expander("📥 View & Export All Power Plants Combined CSV Data"):
+        if not df_hist_filtered.empty:
+            st.dataframe(df_hist_filtered, use_container_width=True)
+            st.download_button(
+                label="Download All Plants History as CSV",
+                data=df_hist_filtered.to_csv(index=False).encode('utf-8'),
+                file_name="all_plants_generation_history.csv",
+                mime="text/csv"
+            )
 
 # Auto-refresh loop
 if auto_refresh:
