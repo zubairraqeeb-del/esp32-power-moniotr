@@ -93,34 +93,49 @@ tab1, tab2, tab3 = st.tabs(["🏭 Siddhirganj 335MW", "🏭 H412 Plant", "🏭 S
 
 # ------------------ TAB 1: Siddhirganj 335MW ------------------
 with tab1:
-    st.subheader("Siddhirganj 335MW")
+    st.subheader("Siddhirganj 335MW Overview")
 
-    gross_mw_335 = float(live_data_335.get("gross_mw", 0.0))
-    gross_mvar_335 = float(live_data_335.get("gross_mvar", 0.0))
-    gt_pf_335 = float(live_data_335.get("gt_pf", 0.0))
-    st_pf_335 = float(live_data_335.get("st_pf", 0.0))
+    gt_mw_335 = float(live_data_335.get("gt_mw", 0.0))
+    st_mw_335 = float(live_data_335.get("st_mw", 0.0))
+    gt_mvar_335 = float(live_data_335.get("gt_mvar", 0.0))
+    st_mvar_335 = float(live_data_335.get("st_mvar", 0.0))
+
+    # Fallback to direct gross values if component values aren't individual in payload
+    gross_mw_335 = (gt_mw_335 + st_mw_335) if (gt_mw_335 or st_mw_335) else float(live_data_335.get("gross_mw", 0.0))
+    gross_mvar_335 = (gt_mvar_335 + st_mvar_335) if (gt_mvar_335 or st_mvar_335) else float(live_data_335.get("gross_mvar", 0.0))
+    gt_pf_335 = calc_pf(gt_mw_335, gt_mvar_335) if (gt_mw_335 or gt_mvar_335) else float(live_data_335.get("gt_pf", 0.0))
+    st_pf_335 = calc_pf(st_mw_335, st_mvar_335) if (st_mw_335 or st_mvar_335) else float(live_data_335.get("st_pf", 0.0))
 
     # Alarms
     if gross_mw_335 > mw_warning:
-        st.error(f"🚨 **HIGH LOAD WARNING:** Gross Generation ({gross_mw_335:.2f} MW) has exceeded limit threshold ({mw_warning:.1f} MW)!")
+        st.error(f"🚨 **HIGH LOAD WARNING:** Gross Generation ({gross_mw_335:.2f} MW) has exceeded threshold ({mw_warning:.1f} MW)!")
     if 0 < gt_pf_335 < pf_min_limit:
-        st.error(f"🚨 **LOW POWER FACTOR WARNING:** GT PF ({gt_pf_335:.3f}) is below target limit ({pf_min_limit:.2f})!")
+        st.error(f"🚨 **LOW POWER FACTOR WARNING:** GT PF ({gt_pf_335:.3f}) is below limit ({pf_min_limit:.2f})!")
     if 0 < st_pf_335 < pf_min_limit:
-        st.error(f"🚨 **LOW POWER FACTOR WARNING:** ST PF ({st_pf_335:.3f}) is below target limit ({pf_min_limit:.2f})!")
+        st.error(f"🚨 **LOW POWER FACTOR WARNING:** ST PF ({st_pf_335:.3f}) is below limit ({pf_min_limit:.2f})!")
 
+    # Summary Row
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(label="Gross MW", value=f"{gross_mw_335:.2f} MW")
     c2.metric(label="Gross MVAR", value=f"{gross_mvar_335:.2f} MVAR")
     c3.metric(label="GT Power Factor", value=f"{gt_pf_335:.3f}")
     c4.metric(label="ST Power Factor", value=f"{st_pf_335:.3f}")
 
+    st.markdown("##### 🔌 Individual Component Breakdown")
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric(label="GT MW", value=f"{gt_mw_335:.2f} MW")
+    m2.metric(label="GT MVAR", value=f"{gt_mvar_335:.2f} MVAR")
+    m3.metric(label="ST MW", value=f"{st_mw_335:.2f} MW")
+    m4.metric(label="ST MVAR", value=f"{st_mvar_335:.2f} MVAR")
+
+
 # ------------------ TAB 2: H412 Plant ------------------
 with tab2:
-    st.subheader("H412 Generation Unit")
+    st.subheader("H412 Generation Unit Overview")
 
     gt_mw_412 = float(live_data_412.get("gt_mw", 0.0))
-    gt_mvar_412 = float(live_data_412.get("gt_mvar", 0.0))
     st_mw_412 = float(live_data_412.get("st_mw", 0.0))
+    gt_mvar_412 = float(live_data_412.get("gt_mvar", 0.0))
     st_mvar_412 = float(live_data_412.get("st_mvar", 0.0))
 
     # Calculations
@@ -131,25 +146,34 @@ with tab2:
 
     # Alarms
     if gross_mw_412 > mw_warning:
-        st.error(f"🚨 **HIGH LOAD WARNING:** Gross Generation ({gross_mw_412:.2f} MW) has exceeded limit threshold ({mw_warning:.1f} MW)!")
+        st.error(f"🚨 **HIGH LOAD WARNING:** Gross Generation ({gross_mw_412:.2f} MW) has exceeded threshold ({mw_warning:.1f} MW)!")
     if 0 < gt_pf_412 < pf_min_limit:
-        st.error(f"🚨 **LOW POWER FACTOR WARNING:** GT PF ({gt_pf_412:.3f}) is below target limit ({pf_min_limit:.2f})!")
+        st.error(f"🚨 **LOW POWER FACTOR WARNING:** GT PF ({gt_pf_412:.3f}) is below limit ({pf_min_limit:.2f})!")
     if 0 < st_pf_412 < pf_min_limit:
-        st.error(f"🚨 **LOW POWER FACTOR WARNING:** ST PF ({st_pf_412:.3f}) is below target limit ({pf_min_limit:.2f})!")
+        st.error(f"🚨 **LOW POWER FACTOR WARNING:** ST PF ({st_pf_412:.3f}) is below limit ({pf_min_limit:.2f})!")
 
+    # Summary Row
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(label="Gross MW", value=f"{gross_mw_412:.2f} MW")
     c2.metric(label="Gross MVAR", value=f"{gross_mvar_412:.2f} MVAR")
     c3.metric(label="GT Power Factor", value=f"{gt_pf_412:.3f}")
     c4.metric(label="ST Power Factor", value=f"{st_pf_412:.3f}")
 
+    st.markdown("##### 🔌 Individual Component Breakdown")
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric(label="GT MW", value=f"{gt_mw_412:.2f} MW")
+    m2.metric(label="GT MVAR", value=f"{gt_mvar_412:.2f} MVAR")
+    m3.metric(label="ST MW", value=f"{st_mw_412:.2f} MW")
+    m4.metric(label="ST MVAR", value=f"{st_mvar_412:.2f} MVAR")
+
+
 # ------------------ TAB 3: S120 Plant ------------------
 with tab3:
-    st.subheader("S120 Generation Unit")
+    st.subheader("S120 Generation Unit Overview")
 
     gt1_mw_120 = float(live_data_120.get("gt1_mw", 0.0))
-    gt1_mvar_120 = float(live_data_120.get("gt1_mvar", 0.0))
     gt2_mw_120 = float(live_data_120.get("gt2_mw", 0.0))
+    gt1_mvar_120 = float(live_data_120.get("gt1_mvar", 0.0))
     gt2_mvar_120 = float(live_data_120.get("gt2_mvar", 0.0))
 
     # Calculations
@@ -160,17 +184,25 @@ with tab3:
 
     # Alarms
     if gross_mw_120 > mw_warning:
-        st.error(f"🚨 **HIGH LOAD WARNING:** Gross Generation ({gross_mw_120:.2f} MW) has exceeded limit threshold ({mw_warning:.1f} MW)!")
+        st.error(f"🚨 **HIGH LOAD WARNING:** Gross Generation ({gross_mw_120:.2f} MW) has exceeded threshold ({mw_warning:.1f} MW)!")
     if 0 < gt1_pf_120 < pf_min_limit:
-        st.error(f"🚨 **LOW POWER FACTOR WARNING:** GT1 PF ({gt1_pf_120:.3f}) is below target limit ({pf_min_limit:.2f})!")
+        st.error(f"🚨 **LOW POWER FACTOR WARNING:** GT1 PF ({gt1_pf_120:.3f}) is below limit ({pf_min_limit:.2f})!")
     if 0 < gt2_pf_120 < pf_min_limit:
-        st.error(f"🚨 **LOW POWER FACTOR WARNING:** GT2 PF ({gt2_pf_120:.3f}) is below target limit ({pf_min_limit:.2f})!")
+        st.error(f"🚨 **LOW POWER FACTOR WARNING:** GT2 PF ({gt2_pf_120:.3f}) is below limit ({pf_min_limit:.2f})!")
 
+    # Summary Row
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(label="Gross MW", value=f"{gross_mw_120:.2f} MW")
     c2.metric(label="Gross MVAR", value=f"{gross_mvar_120:.2f} MVAR")
     c3.metric(label="GT1 Power Factor", value=f"{gt1_pf_120:.3f}")
     c4.metric(label="GT2 Power Factor", value=f"{gt2_pf_120:.3f}")
+
+    st.markdown("##### 🔌 Individual Component Breakdown")
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric(label="GT1 MW", value=f"{gt1_mw_120:.2f} MW")
+    m2.metric(label="GT1 MVAR", value=f"{gt1_mvar_120:.2f} MVAR")
+    m3.metric(label="GT2 MW", value=f"{gt2_mw_120:.2f} MW")
+    m4.metric(label="GT2 MVAR", value=f"{gt2_mvar_120:.2f} MVAR")
 
 st.markdown("---")
 
