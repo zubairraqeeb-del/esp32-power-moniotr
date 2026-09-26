@@ -42,6 +42,7 @@ HIST_URL = "https://power-monitor-660f6-default-rtdb.asia-southeast1.firebasedat
 
 S120_LIVE_URL = "https://h412-egb-web-dashboard-default-rtdb.asia-southeast1.firebasedatabase.app/s120_live_generation.json"
 H412_LIVE_URL = "https://h412-egb-web-dashboard-default-rtdb.asia-southeast1.firebasedatabase.app/h412_live_generation.json"
+SONAGAZI_LIVE_URL = "https://power-monitor-660f6-default-rtdb.asia-southeast1.firebasedatabase.app/sonagazi_live.json"
 
 # --- Power Factor Helper Function ---
 def calc_pf(mw, mvar):
@@ -64,7 +65,7 @@ def fetch_url_json(url, timeout=3):
     return {}
 
 def fetch_history_data():
-    """Fetches historical data containing gross_mw, gross_mw_412, and gross_mw_120."""
+    """Fetches historical data containing metrics for all 4 plants."""
     try:
         req = urllib.request.Request(HIST_URL, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req, timeout=5) as response:
@@ -86,17 +87,19 @@ def fetch_history_data():
                     mw_335 = float(val.get("gross_mw", 0.0) or 0.0)
                     mw_412 = float(val.get("gross_mw_412", 0.0) or 0.0)
                     mw_120 = float(val.get("gross_mw_120", 0.0) or 0.0)
+                    mw_75 = float(val.get("total_mw_75", 0.0) or val.get("total_mw", 0.0) or 0.0)
 
                     records.append({
                         "Live Time": live_timestamp,
                         "Siddhirganj 335MW": mw_335,
                         "Haripur 412MW": mw_412,
-                        "Siddhirganj 2x120MW": mw_120
+                        "Siddhirganj 2x120MW": mw_120,
+                        "Sonagazi 75MW": mw_75
                     })
                 return pd.DataFrame(records)
     except Exception:
         pass
-    return pd.DataFrame(columns=["Live Time", "Siddhirganj 335MW", "Haripur 412MW", "Siddhirganj 2x120MW"])
+    return pd.DataFrame(columns=["Live Time", "Siddhirganj 335MW", "Haripur 412MW", "Siddhirganj 2x120MW", "Sonagazi 75MW"])
 
 def apply_time_filter(df, horizon_setting):
     """Filters history based on user selection in sidebar."""
@@ -129,16 +132,18 @@ st.title("⚡ EGB PLC Power Plants")
 live_data_335 = fetch_url_json(LIVE_URL)
 live_data_412 = fetch_url_json(H412_LIVE_URL)
 live_data_120 = fetch_url_json(S120_LIVE_URL)
+live_data_75 = fetch_url_json(SONAGAZI_LIVE_URL)
 
 # Fetch History dataset
 df_hist_all = fetch_history_data()
 df_hist_filtered = apply_time_filter(df_hist_all, time_horizon)
 
 # Tabbed Layout
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🏭 Siddhirganj 335MW", 
     "🏭 Haripur 412MW", 
     "🏭 Siddhirganj 2x120MW", 
+    "☀️ Sonagazi 75MW",
     "📊 Comparative Analytics"
 ])
 
@@ -280,23 +285,57 @@ with tab3:
             )
 
 
-# ------------------ TAB 4: Comparative Analytics ------------------
+# ------------------ TAB 4: Sonagazi 75MW ------------------
 with tab4:
+    st.subheader("Sonagazi 75MW Overview")
+
+    total_mw_75 = float(live_data_75.get("total_mw", 0.0))
+    total_mvar_75 = float(live_data_75.get("total_mvar", 0.0))
+    pf_75 = float(live_data_75.get("pf", calc_pf(total_mw_75, total_mvar_75)))
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric(label="Total MW", value=f"{total_mw_75:.2f} MW")
+    c2.metric(label="Total MVAR", value=f"{total_mvar_75:.2f} MVAR")
+    c3.metric(label="Power Factor", value=f"{pf_75:.3f}")
+
+    st.markdown("---")
+
+    st.subheader("📈 Historical Trend Analytics (Sonagazi 75MW)")
+    if not df_hist_filtered.empty:
+        st.line_chart(data=df_hist_filtered, x="Live Time", y="Sonagazi 75MW")
+    else:
+        st.info("No historical data available in Firebase yet.")
+
+    with st.expander("📥 View & Export Sonagazi 75MW Historical CSV Data"):
+        if not df_hist_filtered.empty:
+            df_75_csv = df_hist_filtered[["Live Time", "Sonagazi 75MW"]]
+            st.dataframe(df_75_csv, use_container_width=True)
+            st.download_button(
+                label="Download Sonagazi 75MW History as CSV",
+                data=df_75_csv.to_csv(index=False).encode('utf-8'),
+                file_name="sonagazi_75mw_generation_history.csv",
+                mime="text/csv"
+            )
+
+
+# ------------------ TAB 5: Comparative Analytics ------------------
+with tab5:
     st.subheader("📊 Cross-Plant Comparative Trend Analysis")
 
-    total_live_mw = gross_mw_335 + gross_mw_412 + gross_mw_120
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric(label="Total Fleet Live Generation", value=f"{total_live_mw:.2f} MW")
-    k2.metric(label="Siddhirganj 335MW Share", value=f"{gross_mw_335:.1f} MW")
-    k3.metric(label="Haripur 412MW Share", value=f"{gross_mw_412:.1f} MW")
-    k4.metric(label="Siddhirganj 2x120MW Share", value=f"{gross_mw_120:.1f} MW")
+    total_live_mw = gross_mw_335 + gross_mw_412 + gross_mw_120 + total_mw_75
+    k1, k2, k3, k4, k5 = st.columns(5)
+    k1.metric(label="Total Fleet Live MW", value=f"{total_live_mw:.2f} MW")
+    k2.metric(label="Siddhirganj 335MW", value=f"{gross_mw_335:.1f} MW")
+    k3.metric(label="Haripur 412MW", value=f"{gross_mw_412:.1f} MW")
+    k4.metric(label="Siddhirganj 2x120MW", value=f"{gross_mw_120:.1f} MW")
+    k5.metric(label="Sonagazi 75MW", value=f"{total_mw_75:.1f} MW")
 
     st.markdown("---")
 
     selected_plants = st.multiselect(
         "Select Plants to Include in Trend Comparison:",
-        options=["Siddhirganj 335MW", "Haripur 412MW", "Siddhirganj 2x120MW"],
-        default=["Siddhirganj 335MW", "Haripur 412MW", "Siddhirganj 2x120MW"]
+        options=["Siddhirganj 335MW", "Haripur 412MW", "Siddhirganj 2x120MW", "Sonagazi 75MW"],
+        default=["Siddhirganj 335MW", "Haripur 412MW", "Siddhirganj 2x120MW", "Sonagazi 75MW"]
     )
 
     if not df_hist_filtered.empty:
