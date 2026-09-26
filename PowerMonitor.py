@@ -91,12 +91,12 @@ def fetch_history_data():
                         "Live Time": live_timestamp,
                         "Siddhirganj 335MW": mw_335,
                         "Haripur 412MW": mw_412,
-                        "Siddhirganj 2x120": mw_120
+                        "Siddhirganj 2x120MW": mw_120
                     })
                 return pd.DataFrame(records)
     except Exception:
         pass
-    return pd.DataFrame(columns=["Live Time", "Siddhirganj 335MW", "Haripur 412MW", "Siddhirganj 2x120 Plantt"])
+    return pd.DataFrame(columns=["Live Time", "Siddhirganj 335MW", "Haripur 412MW", "Siddhirganj 2x120MW"])
 
 def apply_time_filter(df, horizon_setting):
     """Filters history based on user selection in sidebar."""
@@ -188,9 +188,9 @@ with tab1:
             )
 
 
-# ------------------ TAB 2: H412 Plant ------------------
+# ------------------ TAB 2: Haripur 412MW ------------------
 with tab2:
-    st.subheader("H412 Generation Unit Overview")
+    st.subheader("Haripur 412MW Overview")
 
     gt_mw_412 = float(live_data_412.get("gt_mw", 0.0))
     st_mw_412 = float(live_data_412.get("st_mw", 0.0))
@@ -216,27 +216,27 @@ with tab2:
 
     st.markdown("---")
 
-    st.subheader("📈 Historical Trend Analytics (H412)")
+    st.subheader("📈 Historical Trend Analytics (Haripur 412MW)")
     if not df_hist_filtered.empty:
-        st.line_chart(data=df_hist_filtered, x="Live Time", y="Haripur 412MWt")
+        st.line_chart(data=df_hist_filtered, x="Live Time", y="Haripur 412MW")
     else:
         st.info("No historical data available in Firebase yet.")
 
-    with st.expander("📥 View & Export Haripur 412MWt Historical CSV Data"):
+    with st.expander("📥 View & Export Haripur 412MW Historical CSV Data"):
         if not df_hist_filtered.empty:
-            df_412_csv = df_hist_filtered[["Live Time", "Haripur 412MWt"]]
+            df_412_csv = df_hist_filtered[["Live Time", "Haripur 412MW"]]
             st.dataframe(df_412_csv, use_container_width=True)
             st.download_button(
-                label="Download H412 History as CSV",
+                label="Download Haripur 412MW History as CSV",
                 data=df_412_csv.to_csv(index=False).encode('utf-8'),
-                file_name="h412_generation_history.csv",
+                file_name="haripur_412mw_generation_history.csv",
                 mime="text/csv"
             )
 
 
-# ------------------ TAB 3: S120 Plant ------------------
+# ------------------ TAB 3: Siddhirganj 2x120MW ------------------
 with tab3:
-    st.subheader("Siddhirganj 2x120MW Generation Unit Overview")
+    st.subheader("Siddhirganj 2x120MW Overview")
 
     gt1_mw_120 = float(live_data_120.get("gt1_mw", 0.0))
     gt2_mw_120 = float(live_data_120.get("gt2_mw", 0.0))
@@ -250,7 +250,6 @@ with tab3:
 
     m1, m2, m3, m4 = st.columns(4)
     m1.metric(label="GT1 MW", value=f"{gt1_mw_120:.2f} MW")
-    m1.metric_value = f"{gt1_mw_120:.2f} MW"
     m2.metric(label="GT1 MVAR", value=f"{gt1_mvar_120:.2f} MVAR")
     m3.metric(label="GT2 MW", value=f"{gt2_mw_120:.2f} MW")
     m4.metric(label="GT2 MVAR", value=f"{gt2_mvar_120:.2f} MVAR")
@@ -263,7 +262,7 @@ with tab3:
 
     st.markdown("---")
 
-    st.subheader("📈 Historical Trend Analytics (S120)")
+    st.subheader("📈 Historical Trend Analytics (Siddhirganj 2x120MW)")
     if not df_hist_filtered.empty:
         st.line_chart(data=df_hist_filtered, x="Live Time", y="Siddhirganj 2x120MW")
     else:
@@ -274,9 +273,9 @@ with tab3:
             df_120_csv = df_hist_filtered[["Live Time", "Siddhirganj 2x120MW"]]
             st.dataframe(df_120_csv, use_container_width=True)
             st.download_button(
-                label="Download S120 History as CSV",
+                label="Download Siddhirganj 2x120MW History as CSV",
                 data=df_120_csv.to_csv(index=False).encode('utf-8'),
-                file_name="s120_generation_history.csv",
+                file_name="siddhirganj_2x120mw_generation_history.csv",
                 mime="text/csv"
             )
 
@@ -288,16 +287,16 @@ with tab4:
     total_live_mw = gross_mw_335 + gross_mw_412 + gross_mw_120
     k1, k2, k3, k4 = st.columns(4)
     k1.metric(label="Total Fleet Live Generation", value=f"{total_live_mw:.2f} MW")
-    k2.metric(label="335MW Share", value=f"{gross_mw_335:.1f} MW")
-    k3.metric(label="H412 Share", value=f"{gross_mw_412:.1f} MW")
-    k4.metric(label="S120 Share", value=f"{gross_mw_120:.1f} MW")
+    k2.metric(label="Siddhirganj 335MW Share", value=f"{gross_mw_335:.1f} MW")
+    k3.metric(label="Haripur 412MW Share", value=f"{gross_mw_412:.1f} MW")
+    k4.metric(label="Siddhirganj 2x120MW Share", value=f"{gross_mw_120:.1f} MW")
 
     st.markdown("---")
 
     selected_plants = st.multiselect(
         "Select Plants to Include in Trend Comparison:",
-        options=["Siddhirganj 335MW", "Haripur 412MWt", "Siddhirganj 2x120MW"],
-        default=["Siddhirganj 335MW", "Haripur 412MWt", "Siddhirganj 2x120MW"]
+        options=["Siddhirganj 335MW", "Haripur 412MW", "Siddhirganj 2x120MW"],
+        default=["Siddhirganj 335MW", "Haripur 412MW", "Siddhirganj 2x120MW"]
     )
 
     if not df_hist_filtered.empty:
