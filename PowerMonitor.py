@@ -4,6 +4,10 @@ import urllib.request
 import json
 import time
 import math
+import random
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # --- Page Setup ---
 st.set_page_config(
@@ -36,47 +40,138 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- Authentication Logic ---
-# Defined fallback credentials (update these or use st.secrets)
-USER_CREDENTIALS = {
-    "admin": "egb2026",
-    "operator": "power123"
-}
+# --- SMTP Configuration for mail.egcb.com.bd ---
+# In production, set these inside .streamlit/secrets.toml
+SMTP_SERVER = st.secrets.get("SMTP_SERVER", "mail.egcb.com.bd")
+SMTP_PORT = int(st.secrets.get("SMTP_PORT", 587))  # standard TLS port (or 465 for SSL)
+SENDER_EMAIL = st.secrets.get("SENDER_EMAIL", "noreply@egcb.com.bd")
+SENDER_PASSWORD = st.secrets.get("SENDER_PASSWORD", "YourWebmailPasswordHere")
+
+
+def send_otp_email(receiver_email, otp_code):
+    """Sends a 6-digit OTP code to the specified email via Webmail SMTP."""
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "🔐 Your Security Key / OTP - EGB PLC Power Monitor"
+        msg["From"] = f"EGB PLC Power Monitor <{SENDER_EMAIL}>"
+        msg["To"] = receiver_email
+
+        body_text = f"""
+Hello,
+
+Your One-Time Password (OTP) to access the EGB PLC Power Plants Monitoring Portal is:
+
+{otp_code}
+
+This key is valid for 5 minutes. Please do not share this code with anyone.
+
+Regards,
+EGB PLC Systems Team
+"""
+        body_html = f"""
+        <html>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 500px; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+              <h2 style="color: #0d6efd;">⚡ EGB PLC Power Plants</h2>
+              <p>Hello,</p>
+              <p>Your One-Time Password (OTP) to access the live monitoring portal is:</p>
+              <div style="background-color: #f4f4f4; padding: 15px; text-align: center; border-radius: 5px; font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #000;">
+                {otp_code}
+              </div>
+              <p style="margin-top: 15px; font-size: 13px; color: #666;">This key is valid for <strong>5 minutes</strong>. If you did not request this, please ignore this email.</p>
+              <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+              <p style="font-size: 11px; color: #999;">EGB PLC Automated System Notice</p>
+            </div>
+          </body>
+        </html>
+        """
+
+        msg.attach(MIMEText(body_text, "plain"))
+        msg.attach(MIMEText(body_html, "html"))
+
+        # Connect to SMTP Server
+        if SMTP_PORT == 465:
+            server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=10)
+        else:
+            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10)
+            server.starttls()
+
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
+        server.quit()
+        return True, "Success"
+    except Exception as e:
+        return False, str(e)
+
 
 def check_password():
-    """Returns True if the user has correct credentials."""
+    """Handles the 2-Step Email OTP Authentication process."""
     if st.session_state.get("authenticated", False):
         return True
 
+    if "auth_step" not in st.session_state:
+        st.session_state["auth_step"] = "enter_email"
+
     st.title("🔒 EGB PLC Power Plants Portal")
-    st.subheader("Please log in to access live monitoring")
 
-    with st.form("login_form"):
-        username = st.text_input("Username").strip()
-        password = st.text_input("Password", type="password")
-        submit = st.form_submit_button("Log In", use_container_width=True)
+    # STEP 1: Enter Corporate Email
+    if st.session_state["auth_step"] == "enter_email":
+        st.subheader("Step 1: Verify Corporate Identity")
+        st.markdown("Enter your official email address ending in `@egcb.com.bd` to receive a login security key.")
 
-        if submit:
-            # Check secrets first if available, otherwise check USER_CREDENTIALS dictionary
-            stored_password = None
-            if "credentials" in st.secrets and username in st.secrets["credentials"]:
-                stored_password = st.secrets["credentials"][username]
-            elif username in USER_CREDENTIALS:
-                stored_password = USER_CREDENTIALS[username]
+        with st.form("email_form"):
+            user_email = st.text_input("Corporate Email Address", placeholder="e.g. zubair.uddin@egcb.com.bd").strip().lower()
+            submit_email = st.form_submit_button("Send Security Key (OTP)", use_container_width=True)
 
-            if stored_password and password == stored_password:
-                st.session_state["authenticated"] = True
-                st.session_state["user"] = username
-                st.success("Login successful!")
-                st.rerun()
-            else:
-                st.error("Invalid username or password.")
+            if submit_email:
+                if not user_email.endswith("@egcb.com.bd"):
+                    st.error("Access Restricted: Please enter a valid '@egcb.com.bd' email address.")
+                else:
+                    otp = f"{random.randint(100000, 999999)}"
+                    with st.spinner("Connecting to Webmail server & dispatching OTP..."):
+                        success, err_msg = send_otp_email(user_email, otp)
+                        if success:
+                            st.session_state["user_email"] = user_email
+                            st.session_state["generated_otp"] = otp
+                            st.session_state["otp_timestamp"] = time.time()
+                            st.session_state["auth_step"] = "enter_otp"
+                            st.success(f"Security key sent to {user_email}")
+                            st.rerun()
+                        else:
+                            st.error(f"Failed to send email via SMTP ({SMTP_SERVER}): {err_msg}")
+
+    # STEP 2: Enter OTP
+    elif st.session_state["auth_step"] == "enter_otp":
+        st.subheader("Step 2: Enter Security Key")
+        st.info(f"A 6-digit OTP has been sent to **{st.session_state.get('user_email')}**. Check your webmail inbox.")
+
+        with st.form("otp_form"):
+            input_otp = st.text_input("Enter 6-Digit Security Key (OTP)", type="password").strip()
+            submit_otp = st.form_submit_button("Verify & Access Dashboard", use_container_width=True)
+
+            if submit_otp:
+                # 5-minute expiry check (300 seconds)
+                if time.time() - st.session_state.get("otp_timestamp", 0) > 300:
+                    st.error("The security key has expired (valid for 5 minutes). Please request a new key.")
+                elif input_otp == st.session_state.get("generated_otp"):
+                    st.session_state["authenticated"] = True
+                    st.session_state["user"] = st.session_state.get("user_email")
+                    st.success("Authentication successful!")
+                    st.rerun()
+                else:
+                    st.error("Invalid Security Key. Please verify from your webmail and try again.")
+
+        if st.button("← Change Email Address", use_container_width=True):
+            st.session_state["auth_step"] = "enter_email"
+            st.rerun()
 
     return False
 
-# Stop execution here if user is not authenticated
+
+# Halt execution until authenticated
 if not check_password():
     st.stop()
+
 
 # --- Firebase Endpoints ---
 LIVE_URL = "https://power-monitor-660f6-default-rtdb.asia-southeast1.firebasedatabase.app/live.json"
@@ -161,9 +256,10 @@ def apply_time_filter(df, horizon_setting):
 st.sidebar.title("⚙️ Dashboard Controls")
 
 # Session User & Logout
-st.sidebar.markdown(f"👤 Logged in as: **{st.session_state.get('user', 'User')}**")
+st.sidebar.markdown(f"👤 Logged in: **{st.session_state.get('user', 'User')}**")
 if st.sidebar.button("🚪 Log Out", use_container_width=True):
     st.session_state["authenticated"] = False
+    st.session_state["auth_step"] = "enter_email"
     st.rerun()
 
 st.sidebar.markdown("---")
