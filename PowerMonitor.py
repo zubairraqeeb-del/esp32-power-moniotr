@@ -13,6 +13,29 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- Prevent Graying-Out / Dimming on Auto-Refresh ---
+st.markdown(
+    """
+    <style>
+    /* Lock element opacity to prevent dimming/graying out during st.rerun() */
+    [data-testid="stAppViewContainer"],
+    [data-testid="stVerticalBlock"],
+    .element-container,
+    .stPlotlyChart,
+    .stMetric {
+        opacity: 1 !important;
+        transition: none !important;
+    }
+
+    /* Optional: Hide top-right 'Running...' spinner icon */
+    [data-testid="stStatusWidget"] {
+        visibility: hidden !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # --- Firebase Endpoints ---
 LIVE_URL = "https://power-monitor-660f6-default-rtdb.asia-southeast1.firebasedatabase.app/live.json"
 HIST_URL = "https://power-monitor-660f6-default-rtdb.asia-southeast1.firebasedatabase.app/history.json"
@@ -60,7 +83,6 @@ def fetch_history_data():
                     except Exception:
                         live_timestamp = str(raw_ts)
 
-                    # Extract all 3 historical MW variables
                     mw_335 = float(val.get("gross_mw", 0.0) or 0.0)
                     mw_412 = float(val.get("gross_mw_412", 0.0) or 0.0)
                     mw_120 = float(val.get("gross_mw_120", 0.0) or 0.0)
@@ -108,7 +130,7 @@ live_data_335 = fetch_url_json(LIVE_URL)
 live_data_412 = fetch_url_json(H412_LIVE_URL)
 live_data_120 = fetch_url_json(S120_LIVE_URL)
 
-# Fetch History dataset once
+# Fetch History dataset
 df_hist_all = fetch_history_data()
 df_hist_filtered = apply_time_filter(df_hist_all, time_horizon)
 
@@ -228,6 +250,7 @@ with tab3:
 
     m1, m2, m3, m4 = st.columns(4)
     m1.metric(label="GT1 MW", value=f"{gt1_mw_120:.2f} MW")
+    m1.metric_value = f"{gt1_mw_120:.2f} MW"
     m2.metric(label="GT1 MVAR", value=f"{gt1_mvar_120:.2f} MVAR")
     m3.metric(label="GT2 MW", value=f"{gt2_mw_120:.2f} MW")
     m4.metric(label="GT2 MVAR", value=f"{gt2_mvar_120:.2f} MVAR")
@@ -262,7 +285,6 @@ with tab3:
 with tab4:
     st.subheader("📊 Cross-Plant Comparative Trend Analysis")
 
-    # Fleet-wide Summary Metrics
     total_live_mw = gross_mw_335 + gross_mw_412 + gross_mw_120
     k1, k2, k3, k4 = st.columns(4)
     k1.metric(label="Total Fleet Live Generation", value=f"{total_live_mw:.2f} MW")
@@ -272,7 +294,6 @@ with tab4:
 
     st.markdown("---")
 
-    # Plant Selection for Comparison
     selected_plants = st.multiselect(
         "Select Plants to Include in Trend Comparison:",
         options=["Siddhirganj 335MW", "H412 Plant", "S120 Plant"],
