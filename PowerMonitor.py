@@ -69,9 +69,9 @@ def fetch_history_data():
 # --- Sidebar Controls ---
 st.sidebar.title("⚙️ Dashboard Controls")
 
-st.sidebar.subheader("🚨 Alarm Thresholds")
-mw_warning = st.sidebar.number_input("Max Gross MW Warning", min_value=50.0, max_value=500.0, value=250.0, step=10.0)
-pf_min_limit = st.sidebar.number_input("Min Power Factor Warning", min_value=0.50, max_value=1.00, value=0.85, step=0.01)
+#st.sidebar.subheader("🚨 Alarm Thresholds")
+#mw_warning = st.sidebar.number_input("Max Gross MW Warning", min_value=50.0, max_value=500.0, value=250.0, step=10.0)
+#pf_min_limit = st.sidebar.number_input("Min Power Factor Warning", min_value=0.50, max_value=1.00, value=0.85, step=0.01)
 
 st.sidebar.subheader("📊 Chart Settings")
 time_horizon = st.sidebar.selectbox("Time Window", ["Last 1 Hour", "Last 6 Hours", "Last 12 Hours", "Last 24 Hours", "All Data"], index=3)
@@ -106,7 +106,7 @@ with tab1:
     gt_pf_335 = calc_pf(gt_mw_335, gt_mvar_335) if (gt_mw_335 or gt_mvar_335) else float(live_data_335.get("gt_pf", 0.0))
     st_pf_335 = calc_pf(st_mw_335, st_mvar_335) if (st_mw_335 or st_mvar_335) else float(live_data_335.get("st_pf", 0.0))
     
-    st.markdown("##### 🔌 Individual Component Breakdown")
+   # st.markdown("##### 🔌 Individual Component Breakdown")
     m1, m2, m3, m4 = st.columns(4)
     m1.metric(label="GT MW", value=f"{gt_mw_335:.2f} MW")
     m2.metric(label="GT MVAR", value=f"{gt_mvar_335:.2f} MVAR")
@@ -147,7 +147,7 @@ with tab2:
     #if 0 < st_pf_412 < pf_min_limit:
         #st.error(f"🚨 **LOW POWER FACTOR WARNING:** ST PF ({st_pf_412:.3f}) is below limit ({pf_min_limit:.2f})!")
 
-    st.markdown("##### 🔌 Individual Component Breakdown")
+    #st.markdown("##### 🔌 Individual Component Breakdown")
     m1, m2, m3, m4 = st.columns(4)
     m1.metric(label="GT MW", value=f"{gt_mw_412:.2f} MW")
     m2.metric(label="GT MVAR", value=f"{gt_mvar_412:.2f} MVAR")
@@ -186,7 +186,7 @@ with tab3:
    # if 0 < gt2_pf_120 < pf_min_limit:
        # st.error(f"🚨 **LOW POWER FACTOR WARNING:** GT2 PF ({gt2_pf_120:.3f}) is below limit ({pf_min_limit:.2f})!")
 
-    st.markdown("##### 🔌 Individual Component Breakdown")
+    #st.markdown("##### 🔌 Individual Component Breakdown")
     m1, m2, m3, m4 = st.columns(4)
     m1.metric(label="GT1 MW", value=f"{gt1_mw_120:.2f} MW")
     m2.metric(label="GT1 MVAR", value=f"{gt1_mvar_120:.2f} MVAR")
