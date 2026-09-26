@@ -36,6 +36,48 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# --- Authentication Logic ---
+# Defined fallback credentials (update these or use st.secrets)
+USER_CREDENTIALS = {
+    "admin": "egb2026",
+    "operator": "power123"
+}
+
+def check_password():
+    """Returns True if the user has correct credentials."""
+    if st.session_state.get("authenticated", False):
+        return True
+
+    st.title("🔒 EGB PLC Power Plants Portal")
+    st.subheader("Please log in to access live monitoring")
+
+    with st.form("login_form"):
+        username = st.text_input("Username").strip()
+        password = st.text_input("Password", type="password")
+        submit = st.form_submit_button("Log In", use_container_width=True)
+
+        if submit:
+            # Check secrets first if available, otherwise check USER_CREDENTIALS dictionary
+            stored_password = None
+            if "credentials" in st.secrets and username in st.secrets["credentials"]:
+                stored_password = st.secrets["credentials"][username]
+            elif username in USER_CREDENTIALS:
+                stored_password = USER_CREDENTIALS[username]
+
+            if stored_password and password == stored_password:
+                st.session_state["authenticated"] = True
+                st.session_state["user"] = username
+                st.success("Login successful!")
+                st.rerun()
+            else:
+                st.error("Invalid username or password.")
+
+    return False
+
+# Stop execution here if user is not authenticated
+if not check_password():
+    st.stop()
+
 # --- Firebase Endpoints ---
 LIVE_URL = "https://power-monitor-660f6-default-rtdb.asia-southeast1.firebasedatabase.app/live.json"
 HIST_URL = "https://power-monitor-660f6-default-rtdb.asia-southeast1.firebasedatabase.app/history.json"
@@ -118,6 +160,13 @@ def apply_time_filter(df, horizon_setting):
 # --- Sidebar Controls ---
 st.sidebar.title("⚙️ Dashboard Controls")
 
+# Session User & Logout
+st.sidebar.markdown(f"👤 Logged in as: **{st.session_state.get('user', 'User')}**")
+if st.sidebar.button("🚪 Log Out", use_container_width=True):
+    st.session_state["authenticated"] = False
+    st.rerun()
+
+st.sidebar.markdown("---")
 st.sidebar.subheader("📊 Chart Settings")
 time_horizon = st.sidebar.selectbox("Time Window", ["Last 1 Hour", "Last 6 Hours", "Last 12 Hours", "Last 24 Hours", "All Data"], index=3)
 
@@ -161,17 +210,17 @@ with tab1:
     gt_pf_335 = calc_pf(gt_mw_335, gt_mvar_335) if (gt_mw_335 or gt_mvar_335) else float(live_data_335.get("gt_pf", 0.0))
     st_pf_335 = calc_pf(st_mw_335, st_mvar_335) if (st_mw_335 or st_mvar_335) else float(live_data_335.get("st_pf", 0.0))
 
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric(label="GT MW", value=f"{gt_mw_335:.2f} MW")
-    m2.metric(label="GT MVAR", value=f"{gt_mvar_335:.2f} MVAR")
-    m3.metric(label="ST MW", value=f"{st_mw_335:.2f} MW")
-    m4.metric(label="ST MVAR", value=f"{st_mvar_335:.2f} MVAR")
+    t1_m1, t1_m2, t1_m3, t1_m4 = st.columns(4)
+    t1_m1.metric(label="GT MW", value=f"{gt_mw_335:.2f} MW")
+    t1_m2.metric(label="GT MVAR", value=f"{gt_mvar_335:.2f} MVAR")
+    t1_m3.metric(label="ST MW", value=f"{st_mw_335:.2f} MW")
+    t1_m4.metric(label="ST MVAR", value=f"{st_mvar_335:.2f} MVAR")
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric(label="Gross MW", value=f"{gross_mw_335:.2f} MW")
-    c2.metric(label="Gross MVAR", value=f"{gross_mvar_335:.2f} MVAR")
-    c3.metric(label="GT Power Factor", value=f"{gt_pf_335:.3f}")
-    c4.metric(label="ST Power Factor", value=f"{st_pf_335:.3f}")
+    t1_c1, t1_c2, t1_c3, t1_c4 = st.columns(4)
+    t1_c1.metric(label="Gross MW", value=f"{gross_mw_335:.2f} MW")
+    t1_c2.metric(label="Gross MVAR", value=f"{gross_mvar_335:.2f} MVAR")
+    t1_c3.metric(label="GT Power Factor", value=f"{gt_pf_335:.3f}")
+    t1_c4.metric(label="ST Power Factor", value=f"{st_pf_335:.3f}")
 
     st.markdown("---")
 
@@ -207,17 +256,17 @@ with tab2:
     gt_pf_412 = calc_pf(gt_mw_412, gt_mvar_412)
     st_pf_412 = calc_pf(st_mw_412, st_mvar_412)
 
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric(label="GT MW", value=f"{gt_mw_412:.2f} MW")
-    m2.metric(label="GT MVAR", value=f"{gt_mvar_412:.2f} MVAR")
-    m3.metric(label="ST MW", value=f"{st_mw_412:.2f} MW")
-    m4.metric(label="ST MVAR", value=f"{st_mvar_412:.2f} MVAR")
+    t2_m1, t2_m2, t2_m3, t2_m4 = st.columns(4)
+    t2_m1.metric(label="GT MW", value=f"{gt_mw_412:.2f} MW")
+    t2_m2.metric(label="GT MVAR", value=f"{gt_mvar_412:.2f} MVAR")
+    t2_m3.metric(label="ST MW", value=f"{st_mw_412:.2f} MW")
+    t2_m4.metric(label="ST MVAR", value=f"{st_mvar_412:.2f} MVAR")
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric(label="Gross MW", value=f"{gross_mw_412:.2f} MW")
-    c2.metric(label="Gross MVAR", value=f"{gross_mvar_412:.2f} MVAR")
-    c3.metric(label="GT Power Factor", value=f"{gt_pf_412:.3f}")
-    c4.metric(label="ST Power Factor", value=f"{st_pf_412:.3f}")
+    t2_c1, t2_c2, t2_c3, t2_c4 = st.columns(4)
+    t2_c1.metric(label="Gross MW", value=f"{gross_mw_412:.2f} MW")
+    t2_c2.metric(label="Gross MVAR", value=f"{gross_mvar_412:.2f} MVAR")
+    t2_c3.metric(label="GT Power Factor", value=f"{gt_pf_412:.3f}")
+    t2_c4.metric(label="ST Power Factor", value=f"{st_pf_412:.3f}")
 
     st.markdown("---")
 
@@ -253,17 +302,17 @@ with tab3:
     gt1_pf_120 = calc_pf(gt1_mw_120, gt1_mvar_120)
     gt2_pf_120 = calc_pf(gt2_mw_120, gt2_mvar_120)
 
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric(label="GT1 MW", value=f"{gt1_mw_120:.2f} MW")
-    m2.metric(label="GT1 MVAR", value=f"{gt1_mvar_120:.2f} MVAR")
-    m3.metric(label="GT2 MW", value=f"{gt2_mw_120:.2f} MW")
-    m4.metric(label="GT2 MVAR", value=f"{gt2_mvar_120:.2f} MVAR")
+    t3_m1, t3_m2, t3_m3, t3_m4 = st.columns(4)
+    t3_m1.metric(label="GT1 MW", value=f"{gt1_mw_120:.2f} MW")
+    t3_m2.metric(label="GT1 MVAR", value=f"{gt1_mvar_120:.2f} MVAR")
+    t3_m3.metric(label="GT2 MW", value=f"{gt2_mw_120:.2f} MW")
+    t3_m4.metric(label="GT2 MVAR", value=f"{gt2_mvar_120:.2f} MVAR")
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric(label="Gross MW", value=f"{gross_mw_120:.2f} MW")
-    c2.metric(label="Gross MVAR", value=f"{gross_mvar_120:.2f} MVAR")
-    c3.metric(label="GT1 Power Factor", value=f"{gt1_pf_120:.3f}")
-    c4.metric(label="GT2 Power Factor", value=f"{gt2_pf_120:.3f}")
+    t3_c1, t3_c2, t3_c3, t3_c4 = st.columns(4)
+    t3_c1.metric(label="Gross MW", value=f"{gross_mw_120:.2f} MW")
+    t3_c2.metric(label="Gross MVAR", value=f"{gross_mvar_120:.2f} MVAR")
+    t3_c3.metric(label="GT1 Power Factor", value=f"{gt1_pf_120:.3f}")
+    t3_c4.metric(label="GT2 Power Factor", value=f"{gt2_pf_120:.3f}")
 
     st.markdown("---")
 
@@ -285,7 +334,6 @@ with tab3:
             )
 
 
-
 # ------------------ TAB 4: Sonagazi 75MW ------------------
 with tab4:
     st.subheader("Sonagazi 75MW Overview")
@@ -294,7 +342,6 @@ with tab4:
     total_mvar_75 = float(live_data_75.get("total_mvar", 0.0))
     pf_75 = float(live_data_75.get("pf", calc_pf(total_mw_75, total_mvar_75)))
 
-    # Unique column variables for Tab 4
     t4_c1, t4_c2, t4_c3 = st.columns(3)
     t4_c1.metric(label="Total MW", value=f"{total_mw_75:.2f} MW")
     t4_c2.metric(label="Total MVAR", value=f"{total_mvar_75:.2f} MVAR")
@@ -326,12 +373,11 @@ with tab5:
 
     total_live_mw = gross_mw_335 + gross_mw_412 + gross_mw_120 + total_mw_75
     
-    # Unique column variables for Tab 5
     t5_c1, t5_c2, t5_c3, t5_c4, t5_c5 = st.columns(5)
     t5_c1.metric(label="Total Fleet Live MW", value=f"{total_live_mw:.2f} MW")
     t5_c2.metric(label="Siddhirganj 335MW", value=f"{gross_mw_335:.1f} MW")
     t5_c3.metric(label="Haripur 412MW", value=f"{gross_mw_412:.1f} MW")
-    t5_c4.metric(label="Siddhirganj 2x120MW Share", value=f"{gross_mw_120:.1f} MW")
+    t5_c4.metric(label="Siddhirganj 2x120MW", value=f"{gross_mw_120:.1f} MW")
     t5_c5.metric(label="Sonagazi 75MW", value=f"{total_mw_75:.1f} MW")
 
     st.markdown("---")
@@ -363,8 +409,6 @@ with tab5:
                 file_name="all_plants_generation_history.csv",
                 mime="text/csv"
             )
-
-
 
 # Auto-refresh loop
 if auto_refresh:
