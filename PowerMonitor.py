@@ -90,13 +90,13 @@ def fetch_history_data():
                     records.append({
                         "Live Time": live_timestamp,
                         "Siddhirganj 335MW": mw_335,
-                        "H412 Plant": mw_412,
-                        "S120 Plant": mw_120
+                        "Haripur 412MW": mw_412,
+                        "Siddhirganj 2x120": mw_120
                     })
                 return pd.DataFrame(records)
     except Exception:
         pass
-    return pd.DataFrame(columns=["Live Time", "Siddhirganj 335MW", "H412 Plant", "S120 Plant"])
+    return pd.DataFrame(columns=["Live Time", "Siddhirganj 335MW", "Haripur 412MW", "Siddhirganj 2x120 Plantt"])
 
 def apply_time_filter(df, horizon_setting):
     """Filters history based on user selection in sidebar."""
@@ -137,8 +137,8 @@ df_hist_filtered = apply_time_filter(df_hist_all, time_horizon)
 # Tabbed Layout
 tab1, tab2, tab3, tab4 = st.tabs([
     "🏭 Siddhirganj 335MW", 
-    "🏭 H412 Plant", 
-    "🏭 S120 Plant", 
+    "🏭 Haripur 412MW", 
+    "🏭 Siddhirganj 2x120MW", 
     "📊 Comparative Analytics"
 ])
 
@@ -218,13 +218,13 @@ with tab2:
 
     st.subheader("📈 Historical Trend Analytics (H412)")
     if not df_hist_filtered.empty:
-        st.line_chart(data=df_hist_filtered, x="Live Time", y="H412 Plant")
+        st.line_chart(data=df_hist_filtered, x="Live Time", y="Haripur 412MWt")
     else:
         st.info("No historical data available in Firebase yet.")
 
-    with st.expander("📥 View & Export H412 Historical CSV Data"):
+    with st.expander("📥 View & Export Haripur 412MWt Historical CSV Data"):
         if not df_hist_filtered.empty:
-            df_412_csv = df_hist_filtered[["Live Time", "H412 Plant"]]
+            df_412_csv = df_hist_filtered[["Live Time", "Haripur 412MWt"]]
             st.dataframe(df_412_csv, use_container_width=True)
             st.download_button(
                 label="Download H412 History as CSV",
@@ -236,7 +236,7 @@ with tab2:
 
 # ------------------ TAB 3: S120 Plant ------------------
 with tab3:
-    st.subheader("S120 Generation Unit Overview")
+    st.subheader("Siddhirganj 2x120MW Generation Unit Overview")
 
     gt1_mw_120 = float(live_data_120.get("gt1_mw", 0.0))
     gt2_mw_120 = float(live_data_120.get("gt2_mw", 0.0))
@@ -265,13 +265,13 @@ with tab3:
 
     st.subheader("📈 Historical Trend Analytics (S120)")
     if not df_hist_filtered.empty:
-        st.line_chart(data=df_hist_filtered, x="Live Time", y="S120 Plant")
+        st.line_chart(data=df_hist_filtered, x="Live Time", y="Siddhirganj 2x120MW")
     else:
         st.info("No historical data available in Firebase yet.")
 
-    with st.expander("📥 View & Export S120 Historical CSV Data"):
+    with st.expander("📥 View & Export Siddhirganj 2x120MW Historical CSV Data"):
         if not df_hist_filtered.empty:
-            df_120_csv = df_hist_filtered[["Live Time", "S120 Plant"]]
+            df_120_csv = df_hist_filtered[["Live Time", "Siddhirganj 2x120MW"]]
             st.dataframe(df_120_csv, use_container_width=True)
             st.download_button(
                 label="Download S120 History as CSV",
@@ -296,8 +296,8 @@ with tab4:
 
     selected_plants = st.multiselect(
         "Select Plants to Include in Trend Comparison:",
-        options=["Siddhirganj 335MW", "H412 Plant", "S120 Plant"],
-        default=["Siddhirganj 335MW", "H412 Plant", "S120 Plant"]
+        options=["Siddhirganj 335MW", "Haripur 412MWt", "Siddhirganj 2x120MW"],
+        default=["Siddhirganj 335MW", "Haripur 412MWt", "Siddhirganj 2x120MW"]
     )
 
     if not df_hist_filtered.empty:
