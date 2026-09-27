@@ -48,7 +48,7 @@ SENDER_PASSWORD = st.secrets.get("SENDER_PASSWORD", "YourPasswordHere")
 
 
 def send_otp_email(receiver_email, otp_code):
-    """Sends a 6-digit OTP code to the user via Webmail SSL SMTP."""
+    """Sends a 6-digit OTP code to the user via Webmail SSL SMTP with credential fallback."""
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = "🔐 Your Security Key / OTP - EGB PLC Power Monitor"
@@ -90,7 +90,15 @@ EGB PLC Systems Team
 
         # Connect directly via SSL on Port 465
         server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=10)
-        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+
+        # Attempt 1: Try full email address login
+        try:
+            server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        except smtplib.SMTPAuthenticationError:
+            # Attempt 2: Fallback to short username (without @egcb.com.bd)
+            short_user = SENDER_EMAIL.split("@")[0]
+            server.login(short_user, SENDER_PASSWORD)
+
         server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
         server.quit()
         return True, "Success"
