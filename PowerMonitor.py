@@ -44,13 +44,13 @@ st.markdown(
 SMTP_SERVER = st.secrets.get("SMTP_SERVER", "mail.egcb.com.bd")
 SMTP_PORT = int(st.secrets.get("SMTP_PORT", 465))
 SENDER_EMAIL = st.secrets.get("SENDER_EMAIL", "zubair.uddin@egcb.com.bd")
-SENDER_PASSWORD = st.secrets.get("SENDER_PASSWORD", "zubair@2022")
+SENDER_PASSWORD = st.secrets.get("SENDER_PASSWORD", "YourPasswordHere")
 
 
 def send_otp_email(receiver_email, otp_code):
     """Sends a 6-digit OTP code via SMTP with credential & port fallbacks."""
     # Guard check: Prevent attempting login with default placeholder password
-    if SENDER_PASSWORD == "zubair@2022":
+    if SENDER_PASSWORD == "YourPasswordHere":
         return False, "SENDER_PASSWORD is set to default placeholder. Please configure '.streamlit/secrets.toml' with your actual webmail password."
 
     try:
