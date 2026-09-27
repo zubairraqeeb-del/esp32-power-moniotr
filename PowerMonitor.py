@@ -40,15 +40,19 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- SMTP Configuration for mail.egcb.com.bd (Port 465 SSL) ---
+# --- SMTP Configuration for mail.egcb.com.bd ---
 SMTP_SERVER = st.secrets.get("SMTP_SERVER", "mail.egcb.com.bd")
 SMTP_PORT = int(st.secrets.get("SMTP_PORT", 465))
 SENDER_EMAIL = st.secrets.get("SENDER_EMAIL", "zubair.uddin@egcb.com.bd")
-SENDER_PASSWORD = st.secrets.get("SENDER_PASSWORD", "YourPasswordHere")
+SENDER_PASSWORD = st.secrets.get("SENDER_PASSWORD", "zubair@2022")
 
 
 def send_otp_email(receiver_email, otp_code):
-    """Sends a 6-digit OTP code to the user via Webmail SSL SMTP with credential fallback."""
+    """Sends a 6-digit OTP code via SMTP with credential & port fallbacks."""
+    # Guard check: Prevent attempting login with default placeholder password
+    if SENDER_PASSWORD == "zubair@2022":
+        return False, "SENDER_PASSWORD is set to default placeholder. Please configure '.streamlit/secrets.toml' with your actual webmail password."
+
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = "🔐 Your Security Key / OTP - EGB PLC Power Monitor"
@@ -88,20 +92,34 @@ EGB PLC Systems Team
         msg.attach(MIMEText(body_text, "plain"))
         msg.attach(MIMEText(body_html, "html"))
 
-        # Connect directly via SSL on Port 465
-        server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=10)
-
-        # Attempt 1: Try full email address login
+        # Primary Attempt: SSL on Port 465
         try:
-            server.login(SENDER_EMAIL, SENDER_PASSWORD)
-        except smtplib.SMTPAuthenticationError:
-            # Attempt 2: Fallback to short username (without @egcb.com.bd)
-            short_user = SENDER_EMAIL.split("@")[0]
-            server.login(short_user, SENDER_PASSWORD)
+            server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=10)
+            try:
+                server.login(SENDER_EMAIL, SENDER_PASSWORD)
+            except smtplib.SMTPAuthenticationError:
+                # Fallback: Login with username prefix only (without @egcb.com.bd)
+                short_user = SENDER_EMAIL.split("@")[0]
+                server.login(short_user, SENDER_PASSWORD)
 
-        server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
-        server.quit()
-        return True, "Success"
+            server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
+            server.quit()
+            return True, "Success"
+
+        except Exception:
+            # Secondary Attempt: STARTTLS on Port 587 Fallback
+            server = smtplib.SMTP(SMTP_SERVER, 587, timeout=10)
+            server.starttls()
+            try:
+                server.login(SENDER_EMAIL, SENDER_PASSWORD)
+            except smtplib.SMTPAuthenticationError:
+                short_user = SENDER_EMAIL.split("@")[0]
+                server.login(short_user, SENDER_PASSWORD)
+
+            server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
+            server.quit()
+            return True, "Success"
+
     except Exception as e:
         return False, str(e)
 
