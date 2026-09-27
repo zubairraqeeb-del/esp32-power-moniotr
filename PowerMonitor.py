@@ -31,7 +31,7 @@ st.markdown(
         transition: none !important;
     }
 
-    /* Optional: Hide top-right 'Running...' spinner icon */
+    /* Hide top-right 'Running...' spinner icon */
     [data-testid="stStatusWidget"] {
         visibility: hidden !important;
     }
@@ -40,16 +40,15 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- SMTP Configuration for mail.egcb.com.bd ---
-# In production, set these inside .streamlit/secrets.toml
+# --- SMTP Configuration for mail.egcb.com.bd (Port 465 SSL) ---
 SMTP_SERVER = st.secrets.get("SMTP_SERVER", "mail.egcb.com.bd")
-SMTP_PORT = int(st.secrets.get("SMTP_PORT", 587))  # standard TLS port (or 465 for SSL)
-SENDER_EMAIL = st.secrets.get("SENDER_EMAIL", "noreply@egcb.com.bd")
-SENDER_PASSWORD = st.secrets.get("SENDER_PASSWORD", "YourWebmailPasswordHere")
+SMTP_PORT = int(st.secrets.get("SMTP_PORT", 465))
+SENDER_EMAIL = st.secrets.get("SENDER_EMAIL", "zubair.uddin@egcb.com.bd")
+SENDER_PASSWORD = st.secrets.get("SENDER_PASSWORD", "YourPasswordHere")
 
 
 def send_otp_email(receiver_email, otp_code):
-    """Sends a 6-digit OTP code to the specified email via Webmail SMTP."""
+    """Sends a 6-digit OTP code to the user via Webmail SSL SMTP."""
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = "🔐 Your Security Key / OTP - EGB PLC Power Monitor"
@@ -89,13 +88,8 @@ EGB PLC Systems Team
         msg.attach(MIMEText(body_text, "plain"))
         msg.attach(MIMEText(body_html, "html"))
 
-        # Connect to SMTP Server
-        if SMTP_PORT == 465:
-            server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=10)
-        else:
-            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10)
-            server.starttls()
-
+        # Connect directly via SSL on Port 465
+        server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=10)
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
         server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
         server.quit()
@@ -105,7 +99,7 @@ EGB PLC Systems Team
 
 
 def check_password():
-    """Handles the 2-Step Email OTP Authentication process."""
+    """Handles 2-Step Email OTP Authentication."""
     if st.session_state.get("authenticated", False):
         return True
 
@@ -128,7 +122,7 @@ def check_password():
                     st.error("Access Restricted: Please enter a valid '@egcb.com.bd' email address.")
                 else:
                     otp = f"{random.randint(100000, 999999)}"
-                    with st.spinner("Connecting to Webmail server & dispatching OTP..."):
+                    with st.spinner("Connecting to mail.egcb.com.bd & sending OTP..."):
                         success, err_msg = send_otp_email(user_email, otp)
                         if success:
                             st.session_state["user_email"] = user_email
@@ -150,7 +144,7 @@ def check_password():
             submit_otp = st.form_submit_button("Verify & Access Dashboard", use_container_width=True)
 
             if submit_otp:
-                # 5-minute expiry check (300 seconds)
+                # 5-minute expiry check
                 if time.time() - st.session_state.get("otp_timestamp", 0) > 300:
                     st.error("The security key has expired (valid for 5 minutes). Please request a new key.")
                 elif input_otp == st.session_state.get("generated_otp"):
@@ -159,7 +153,7 @@ def check_password():
                     st.success("Authentication successful!")
                     st.rerun()
                 else:
-                    st.error("Invalid Security Key. Please verify from your webmail and try again.")
+                    st.error("Invalid Security Key. Please check your webmail and try again.")
 
         if st.button("← Change Email Address", use_container_width=True):
             st.session_state["auth_step"] = "enter_email"
